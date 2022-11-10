@@ -1,7 +1,3 @@
-# This action is deprecated
-
-Use https://github.com/advanced-security/delombok instead.
-
 # delombok GitHub action
 
 Inspired by https://github.com/lcartey/delombok-action
