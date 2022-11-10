@@ -32,7 +32,7 @@ jobs:
         architecture: x64
 
     - name: Delombok
-      uses: zbazztian/delombok@main
+      uses: advanced-security/delombok@main
 
     - run: |
        mvn clean install -DskipTests
