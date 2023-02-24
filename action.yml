@@ -1,12 +1,19 @@
 name: 'Delombok.'
 description: 'Delombok the given directory'
 inputs:
-  directory:
+  src-directory:
     description: 'Path to the directory to delombok'
     required: false
     default: ${{ github.workspace }}
+  output-directory:
+    description: 'Path to the directory to write temporary delomboked files to'
+    required: false
+    default: ${{ github.workspace }}/src-delomboked
 runs:
   using: "composite"
   steps:
-    - run: ${{ github.action_path }}/delombok.sh "${{ inputs.directory }}"
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    - run: ${{ github.action_path }}/delombok.sh "${{ inputs.src-directory }}" "${{ inputs.output-directory }}"
       shell: bash

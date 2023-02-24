@@ -16,23 +16,48 @@ jobs:
       contents: read
       security-events: write
 
-    strategy:
-      fail-fast: false
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - name: Set WebGoat workspace env var
+      run: |
+        echo "WEBGOAT_WORKSPACE=$GITHUB_WORKSPACE/WebGoat" >> $GITHUB_ENV
+
+    - name: Checkout this repository
+      uses: actions/checkout@v3
+
+    - name: Checkout WebGoat repository
+      uses: actions/checkout@v3
       with:
         repository: WebGoat/WebGoat
-
-    - uses: actions/setup-java@v1
+        path: ${{ env.WEBGOAT_WORKSPACE }}
+  
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
       with:
+        distribution: 'temurin'
         java-version: '17'
         java-package: jdk
         architecture: x64
+        cache: 'maven'
 
     - name: Delombok
-      uses: advanced-security/delombok@main
+      uses: ./
+      with:
+        src-directory: ${{ env.WEBGOAT_WORKSPACE }}
+        output-directory: ${{ env.WEBGOAT_WORKSPACE }}/src-delomboked
 
-    - run: |
-       mvn clean install -DskipTests
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: java
+        source-root: ${{ env.WEBGOAT_WORKSPACE }}
+        queries: security-extended
+        debug: true
+
+    - name: Build with Maven
+      run: mvn clean install -B -DskipTests -Dspotless.check.skip -f ${{ env.WEBGOAT_WORKSPACE }}/pom.xml
+
+    - name: Perform CodeQL analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        checkout_path: ${{ env.WEBGOAT_WORKSPACE }}
+        upload: false

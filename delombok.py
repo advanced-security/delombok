@@ -1,10 +1,9 @@
 import sys
 import re
-import difflib
-from pprint import pprint
 import subprocess
 import re
-from os.path import realpath, dirname, join
+from os.path import realpath, dirname, join, isdir
+from os import walk, makedirs
 
 INSERT_COST = 1
 DELETE_COST = INSERT_COST
@@ -248,16 +247,37 @@ def writeFile(path, contents):
 
 
 def main():
-  inputFile = sys.argv[1]
-  outputFile = sys.argv[2]
-  with open(inputFile, 'r') as f:
-    original = f.read()
-    normalizedOriginal = normalize(original, parse(original))
-
-  if not re.compile('^\s*import(\s+static)?\s+lombok(\.|\s|;|$)', re.MULTILINE).search(original):
-    print(inputFile + ' does not contain lombok code!', file=sys.stderr)
-    writeFile(outputFile, original)
+  if len(sys.argv) != 3:
+    print('Usage: ' + sys.argv[0] + ' <srcDir> <outDir>', file=sys.stderr)
     return
+
+  srcDir = sys.argv[1]
+  if not srcDir.endswith('/'):
+    srcDir = srcDir + '/'
+  outDir = sys.argv[2]
+  if not outDir.endswith('/'):
+    outDir = outDir + '/'
+
+  if not isdir(srcDir):
+    print(srcDir + ' is not a directory!', file=sys.stderr)
+    return
+
+  makedirs(outDir)
+
+  compiledRe = re.compile('^\s*import(\s+static)?\s+lombok(\.|\s|;|$)', re.MULTILINE)
+
+  normalisedOriginalJavaFiles = {}
+
+  for root, _, files in walk(srcDir):
+    for file in files:
+      if file.lower().endswith('.java'):
+        relativeSrcPath = join(root.removeprefix(srcDir), file)
+        absPath = join(root, file)
+        with open(absPath, 'r') as f:
+          original = f.read()
+          if compiledRe.search(original):
+            print('Found Lombok code in ' + relativeSrcPath, file=sys.stdout)
+            normalisedOriginalJavaFiles[relativeSrcPath] = normalize(original, parse(original))
 
   delombokArgs = [
     'java',
@@ -266,29 +286,32 @@ def main():
     '-f', 'suppressWarnings:skip',
     '-f', 'generated:skip',
     '-f', 'generateDelombokComment:skip',
-    '--print',
-    inputFile
+    srcDir,
+    '-d', outDir
   ]
 
   print(' '.join(delombokArgs), file=sys.stderr)
 
-  delomboked = subprocess.run(
+  subprocess.run(
     delombokArgs,
-    capture_output=True,
     check=True
-  ).stdout.decode()
-
-  if delomboked.strip() == '':
-    print('WARNING: Delombok returned an empty string for ' + inputFile + ' !', file=sys.stderr)
-
-  normalizedDelomboked = normalize(delomboked, parse(delomboked))
-
-  writeFile(
-    outputFile,
-    match(
-      normalizedOriginal.splitlines(keepends=True),
-      normalizedDelomboked.splitlines(keepends=True)
-    )
   )
+
+  # if delomboked.strip() == '':
+  #   print('WARNING: Delombok returned an empty string for ' + inputFile + ' !', file=sys.stderr)
+
+  for relativeSrcPath in normalisedOriginalJavaFiles.keys():
+    delombokedAbsPath = join(outDir, relativeSrcPath)
+    with open(delombokedAbsPath, 'r') as f:
+      delomboked = f.read()
+      normalizedDelomboked = normalize(delomboked, parse(delomboked))
+      print('Writing back to ' + relativeSrcPath, file=sys.stdout)
+      writeFile(
+        join(srcDir, relativeSrcPath),
+        match(
+          normalisedOriginalJavaFiles[relativeSrcPath].splitlines(keepends=True),
+          normalizedDelomboked.splitlines(keepends=True)
+        )
+      )
 
 main()
