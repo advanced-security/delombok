@@ -1,3 +1,5 @@
+>**⚠️ Note:** CodeQL `2.14.4+` (GitHub Enterprise Server `3.11+`) now [natively supports Java codebases that use Project Lombok](https://github.blog/changelog/2023-09-01-code-scanning-with-codeql-improves-support-for-java-codebases-that-use-project-lombok/).  Use this action for legacy configurations.
+
 # delombok GitHub action
 
 Inspired by https://github.com/lcartey/delombok-action
